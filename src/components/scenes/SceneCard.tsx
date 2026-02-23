@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
 import { useProjectStore } from '@/stores/project-store';
 import type { Scene } from '@/types/scene';
 
@@ -12,11 +11,11 @@ interface Props {
   onSelect: () => void;
 }
 
-const statusColors: Record<Scene['status'], string> = {
-  idle: 'bg-muted text-muted-foreground',
-  generating: 'bg-yellow-500/20 text-yellow-400',
-  ready: 'bg-green-500/20 text-green-400',
-  error: 'bg-red-500/20 text-red-400',
+const statusDots: Record<Scene['status'], string> = {
+  idle: 'bg-muted-foreground/40',
+  generating: 'bg-yellow-400',
+  ready: 'bg-green-400',
+  error: 'bg-red-400',
 };
 
 export function SceneCard({ scene, index, isSelected, onSelect }: Props) {
@@ -26,6 +25,7 @@ export function SceneCard({ scene, index, isSelected, onSelect }: Props) {
   const toggleSceneSelection = useProjectStore((s) => s.toggleSceneSelection);
 
   const isChecked = selectedSceneIds.includes(scene.id);
+  const isGenerating = scene.status === 'generating';
 
   const handleClick = () => {
     if (multiSelectMode) {
@@ -36,23 +36,17 @@ export function SceneCard({ scene, index, isSelected, onSelect }: Props) {
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
-      className={`group w-full rounded-md border p-2 text-left transition-colors cursor-pointer overflow-hidden ${
+      className={`group w-[45%] rounded-md border p-2 text-left transition-colors cursor-pointer overflow-hidden ${
         multiSelectMode && isChecked
           ? 'border-destructive/50 bg-destructive/10'
           : isSelected && !multiSelectMode
-            ? 'border-primary/50 bg-primary/10'
+            ? 'border-brand/40 bg-brand-muted'
             : 'border-transparent hover:border-border hover:bg-muted/50'
-      }`}
+      } ${isGenerating ? 'animate-glow-pulse' : ''}`}
+      aria-label={`Scene ${index + 1}: ${scene.name}`}
     >
       {/* Top row: checkbox + index + name + remove */}
       <div className="flex items-center gap-1.5">
@@ -70,23 +64,17 @@ export function SceneCard({ scene, index, isSelected, onSelect }: Props) {
         </span>
         <span className="min-w-0 flex-1 truncate text-xs font-medium">{scene.name}</span>
         {!multiSelectMode && (
-          <span
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             className="shrink-0 inline-flex h-5 w-5 items-center justify-center rounded text-xs opacity-0 group-hover:opacity-100 hover:bg-muted cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               removeScene(scene.id);
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.stopPropagation();
-                removeScene(scene.id);
-              }
-            }}
+            aria-label={`Remove scene ${scene.name}`}
           >
             ×
-          </span>
+          </button>
         )}
       </div>
 
@@ -97,15 +85,16 @@ export function SceneCard({ scene, index, isSelected, onSelect }: Props) {
         </p>
       )}
 
-      {/* Bottom row: meta + status badge */}
+      {/* Bottom row: meta + status dot */}
       <div className="mt-1.5 flex items-center justify-between gap-2">
         <span className="text-[10px] text-muted-foreground">
           {scene.durationInFrames}f · {scene.elements.length} elem
         </span>
-        <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 leading-4 ${statusColors[scene.status]}`}>
-          {scene.status}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${statusDots[scene.status]} ${isGenerating ? 'animate-pulse' : ''}`} />
+          <span className="text-[10px] text-muted-foreground">{scene.status}</span>
+        </div>
       </div>
-    </div>
+    </button>
   );
 }

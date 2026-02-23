@@ -136,6 +136,7 @@ export function ScenePropertiesDropup({ scene, anchorRect, onClose }: ScenePrope
             <button
               onClick={() => setMode('select')}
               className="rounded p-0.5 hover:bg-muted"
+              aria-label="Back to mode selection"
             >
               <ArrowLeft className="size-3.5" />
             </button>
@@ -146,7 +147,7 @@ export function ScenePropertiesDropup({ scene, anchorRect, onClose }: ScenePrope
             {mode === 'manual' && 'Manual Editing'}
           </span>
         </div>
-        <button onClick={onClose} className="rounded p-0.5 hover:bg-muted">
+        <button onClick={onClose} className="rounded p-0.5 hover:bg-muted" aria-label="Close properties">
           <X className="size-3.5" />
         </button>
       </div>

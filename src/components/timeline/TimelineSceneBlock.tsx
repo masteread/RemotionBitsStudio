@@ -18,10 +18,13 @@ interface TimelineSceneBlockProps {
   offsetFrame: number;
   pixelsPerFrame: number;
   isSelected: boolean;
+  previewWidth?: number;
+  isAnyResizing?: boolean;
   onSelect: (sceneId: string, e: React.MouseEvent) => void;
   onDragStart: (e: React.DragEvent, index: number) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, index: number) => void;
+  onResizeStart: (sceneId: string, edge: 'left' | 'right', e: React.PointerEvent) => void;
 }
 
 export function TimelineSceneBlock({
@@ -30,13 +33,16 @@ export function TimelineSceneBlock({
   offsetFrame,
   pixelsPerFrame,
   isSelected,
+  previewWidth,
+  isAnyResizing,
   onSelect,
   onDragStart,
   onDragOver,
   onDrop,
+  onResizeStart,
 }: TimelineSceneBlockProps) {
   const color = SCENE_COLORS[index % SCENE_COLORS.length];
-  const width = scene.durationInFrames * pixelsPerFrame;
+  const width = previewWidth ?? scene.durationInFrames * pixelsPerFrame;
   const left = offsetFrame * pixelsPerFrame;
   const showSubTracks = width > 100;
 
@@ -49,14 +55,50 @@ export function TimelineSceneBlock({
     <div
       className={`absolute top-0 h-full cursor-pointer rounded border ${color.bg} ${color.border} ${
         isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''
-      } transition-shadow`}
+      } ${scene.status === 'generating' ? 'animate-pulse' : ''} transition-shadow`}
       style={{ left, width, minWidth: 40 }}
-      draggable
+      draggable={!isAnyResizing}
       onClick={(e) => onSelect(scene.id, e)}
-      onDragStart={(e) => onDragStart(e, index)}
+      onDragStart={(e) => {
+        if (isAnyResizing) { e.preventDefault(); return; }
+        onDragStart(e, index);
+      }}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, index)}
     >
+      {/* Left resize handle */}
+      <div
+        className="absolute left-0 top-0 z-10 h-full w-1.5 cursor-col-resize group"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onResizeStart(scene.id, 'left', e);
+        }}
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      >
+        <div className="h-full w-0.5 bg-transparent group-hover:bg-primary transition-colors" />
+      </div>
+
+      {/* Right resize handle */}
+      <div
+        className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize group"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onResizeStart(scene.id, 'right', e);
+        }}
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      >
+        <div className="ml-auto h-full w-0.5 bg-transparent group-hover:bg-primary transition-colors" />
+      </div>
+
+      {/* Shimmer overlay during generation */}
+      {scene.status === 'generating' && (
+        <div className="absolute inset-0 overflow-hidden rounded pointer-events-none">
+          <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </div>
+      )}
+
       {/* Scene label */}
       <div className="flex h-5 items-center justify-between px-1.5">
         <span className="truncate text-[10px] font-medium">{scene.name}</span>

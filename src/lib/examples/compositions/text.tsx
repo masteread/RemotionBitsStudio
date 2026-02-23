@@ -4,8 +4,11 @@ import { AnimatedText, useViewportRect } from 'remotion-bits';
 
 // 1. Fade In - Duration: 90
 export const FadeIn: React.FC = () => (
-  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-    <AnimatedText transition={{ opacity: [0, 1] }}>
+  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+    <AnimatedText
+      style={{ fontSize: 80, fontWeight: 'bold', color: '#fff' }}
+      transition={{ opacity: [0, 1] }}
+    >
       Hello World
     </AnimatedText>
   </AbsoluteFill>
@@ -13,7 +16,7 @@ export const FadeIn: React.FC = () => (
 
 // 2. Blur In - Duration: 90
 export const BlurIn: React.FC = () => (
-  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
     <AnimatedText
       transition={{
         y: [40, 0],
@@ -23,7 +26,7 @@ export const BlurIn: React.FC = () => (
         splitStagger: 1,
         easing: 'easeOutCubic',
       }}
-      style={{ fontWeight: 'bold' }}
+      style={{ fontSize: 80, fontWeight: 'bold', color: '#fff' }}
     >
       Text Transition
     </AnimatedText>
@@ -32,8 +35,9 @@ export const BlurIn: React.FC = () => (
 
 // 3. Slide from Left - Duration: 90
 export const SlideFromLeft: React.FC = () => (
-  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
     <AnimatedText
+      style={{ fontSize: 80, fontWeight: 'bold', color: '#fff' }}
       transition={{
         opacity: [0, 1],
         x: [-400, 0],
@@ -47,8 +51,9 @@ export const SlideFromLeft: React.FC = () => (
 
 // 4. Word by Word - Duration: 120
 export const WordByWord: React.FC = () => (
-  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
     <AnimatedText
+      style={{ fontSize: 72, fontWeight: 'bold', color: '#fff' }}
       transition={{
         y: [20, 0],
         opacity: [0, 1],
@@ -64,8 +69,9 @@ export const WordByWord: React.FC = () => (
 
 // 5. Character by Character - Duration: 120
 export const CharByChar: React.FC = () => (
-  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
     <AnimatedText
+      style={{ fontSize: 72, fontWeight: 'bold', color: '#fff' }}
       transition={{
         opacity: [0, 1],
         scale: [0.7, 1],
@@ -83,9 +89,9 @@ export const CharByChar: React.FC = () => (
 
 // 6. Glitch In - Duration: 90
 export const GlitchIn: React.FC = () => (
-  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
     <AnimatedText
-      style={{ fontFamily: 'monospace' }}
+      style={{ fontSize: 80, fontWeight: 'bold', color: '#0f0', fontFamily: 'monospace' }}
       transition={{
         glitch: [1, 0, 0.05, 0],
         duration: 45,
@@ -100,9 +106,9 @@ export const GlitchIn: React.FC = () => (
 
 // 7. Glitch Cycle - Duration: 240
 export const GlitchCycle: React.FC = () => (
-  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
     <AnimatedText
-      style={{ fontFamily: 'monospace' }}
+      style={{ fontSize: 72, fontWeight: 'bold', color: '#0f0', fontFamily: 'monospace' }}
       transition={{
         glitch: [1, 0, 0, 0.1, 0, 0, 1],
         duration: 60,

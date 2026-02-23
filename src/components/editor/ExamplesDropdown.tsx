@@ -62,6 +62,7 @@ export function ExamplesDropdown({ onSelectPrompt }: ExamplesDropdownProps) {
           size="icon"
           className="shrink-0 text-muted-foreground hover:text-foreground"
           title="Ver ejemplos de efectos"
+          aria-label="Browse effect examples"
         >
           <Lightbulb className="h-4 w-4" />
         </Button>

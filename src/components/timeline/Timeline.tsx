@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProjectStore } from '@/stores/project-store';
 import { TimelineToolbar } from './TimelineToolbar';
 import { TimelineRuler } from './TimelineRuler';
 import { TimelinePlayhead } from './TimelinePlayhead';
 import { TimelineSceneBlock } from './TimelineSceneBlock';
 import { ScenePropertiesDropup } from './ScenePropertiesDropup';
+import { Film } from 'lucide-react';
 import type { Scene } from '@/types/scene';
 
 const BASE_PPF = 4; // base pixels per frame at 1x zoom
@@ -18,6 +19,7 @@ export function Timeline() {
   const currentFrame = useProjectStore((s) => s.currentFrame);
   const selectScene = useProjectStore((s) => s.selectScene);
   const reorderScenes = useProjectStore((s) => s.reorderScenes);
+  const resizeScene = useProjectStore((s) => s.resizeScene);
   const requestSeek = useProjectStore((s) => s.requestSeek);
 
   const [zoom, setZoom] = useState(1);
@@ -25,6 +27,20 @@ export function Timeline() {
   const [dropupAnchor, setDropupAnchor] = useState<DOMRect | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragIndexRef = useRef<number | null>(null);
+
+  // Resize state
+  const [resizeState, setResizeState] = useState<{
+    sceneId: string;
+    edge: 'left' | 'right';
+    startX: number;
+    originalDuration: number;
+  } | null>(null);
+  const [resizePreviewWidth, setResizePreviewWidth] = useState<number | null>(null);
+  const resizeRef = useRef(resizeState);
+  resizeRef.current = resizeState;
+  const resizePreviewRef = useRef(resizePreviewWidth);
+  resizePreviewRef.current = resizePreviewWidth;
+  const justResizedRef = useRef(false);
 
   const pixelsPerFrame = BASE_PPF * zoom;
 
@@ -61,6 +77,10 @@ export function Timeline() {
   // Scene selection + dropup
   const handleSceneSelect = useCallback(
     (sceneId: string, e: React.MouseEvent) => {
+      if (justResizedRef.current) {
+        justResizedRef.current = false;
+        return;
+      }
       selectScene(sceneId);
       const scene = scenes.find((s) => s.id === sceneId);
       if (!scene) return;
@@ -101,6 +121,71 @@ export function Timeline() {
     [reorderScenes, handleCloseDropup]
   );
 
+  // Resize handlers
+  const handleResizeStart = useCallback(
+    (sceneId: string, edge: 'left' | 'right', e: React.PointerEvent) => {
+      const scene = scenes.find((s) => s.id === sceneId);
+      if (!scene) return;
+      setResizeState({
+        sceneId,
+        edge,
+        startX: e.clientX,
+        originalDuration: scene.durationInFrames,
+      });
+      setResizePreviewWidth(scene.durationInFrames * pixelsPerFrame);
+      handleCloseDropup();
+    },
+    [scenes, pixelsPerFrame, handleCloseDropup]
+  );
+
+  // Set global cursor during resize
+  useEffect(() => {
+    if (!resizeState) return;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [resizeState]);
+
+  useEffect(() => {
+    if (!resizeState) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const rs = resizeRef.current;
+      if (!rs) return;
+      const deltaPx = e.clientX - rs.startX;
+      const deltaFrames = Math.round(deltaPx / pixelsPerFrame);
+      let newDuration: number;
+      if (rs.edge === 'right') {
+        newDuration = rs.originalDuration + deltaFrames;
+      } else {
+        newDuration = rs.originalDuration - deltaFrames;
+      }
+      newDuration = Math.max(15, newDuration);
+      setResizePreviewWidth(newDuration * pixelsPerFrame);
+    };
+
+    const handlePointerUp = () => {
+      const rs = resizeRef.current;
+      if (!rs) return;
+      const pw = resizePreviewRef.current;
+      const finalDuration = Math.max(15, Math.round((pw ?? rs.originalDuration * pixelsPerFrame) / pixelsPerFrame));
+      resizeScene(rs.sceneId, finalDuration, rs.edge);
+      setResizeState(null);
+      setResizePreviewWidth(null);
+      justResizedRef.current = true;
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [resizeState, pixelsPerFrame, resizeScene]);
+
   // Find the current scene for dropup (may have been updated in store)
   const currentDropupScene = dropupScene
     ? scenes.find((s) => s.id === dropupScene.id) ?? null
@@ -109,8 +194,9 @@ export function Timeline() {
   if (scenes.length === 0) {
     return (
       <div className="border-t border-border bg-background px-4 py-2">
-        <div className="flex h-[88px] items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
-          Your scenes will appear here
+        <div className="flex h-[88px] items-center justify-center gap-2 rounded border border-dashed border-border text-xs text-muted-foreground">
+          <Film className="h-4 w-4" />
+          Add scenes to see them on the timeline
         </div>
       </div>
     );
@@ -154,12 +240,33 @@ export function Timeline() {
               offsetFrame={offsets[i]}
               pixelsPerFrame={pixelsPerFrame}
               isSelected={scene.id === selectedSceneId}
+              previewWidth={resizeState?.sceneId === scene.id ? (resizePreviewWidth ?? undefined) : undefined}
+              isAnyResizing={resizeState !== null}
               onSelect={handleSceneSelect}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
+              onResizeStart={handleResizeStart}
             />
           ))}
+
+          {/* Resize duration tooltip */}
+          {resizeState && resizePreviewWidth !== null && (() => {
+            const sceneIdx = scenes.findIndex((s) => s.id === resizeState.sceneId);
+            if (sceneIdx === -1) return null;
+            const offset = offsets[sceneIdx];
+            const tooltipLeft = offset * pixelsPerFrame + resizePreviewWidth / 2;
+            const durationFrames = Math.max(15, Math.round(resizePreviewWidth / pixelsPerFrame));
+            const durationSec = (durationFrames / fps).toFixed(1);
+            return (
+              <div
+                className="absolute top-1 z-20 -translate-x-1/2 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground shadow pointer-events-none"
+                style={{ left: tooltipLeft }}
+              >
+                {durationSec}s ({durationFrames}f)
+              </div>
+            );
+          })()}
 
           {/* Playhead */}
           <TimelinePlayhead

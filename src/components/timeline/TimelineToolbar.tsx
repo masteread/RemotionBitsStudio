@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TimelineToolbarProps {
   currentFrame: number;
@@ -34,25 +35,29 @@ export function TimelineToolbar({
         {formatTimecode(currentFrame, fps)} / {formatTimecode(totalFrames, fps)}
       </span>
       <div className="flex items-center gap-1">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
           onClick={onZoomOut}
           disabled={zoom <= 0.5}
-          className="rounded p-0.5 hover:bg-muted disabled:opacity-30"
-          title="Zoom Out"
+          aria-label="Zoom out timeline"
         >
           <ZoomOut className="size-3.5" />
-        </button>
+        </Button>
         <span className="w-10 text-center font-mono text-muted-foreground">
           {Math.round(zoom * 100)}%
         </span>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
           onClick={onZoomIn}
           disabled={zoom >= 4}
-          className="rounded p-0.5 hover:bg-muted disabled:opacity-30"
-          title="Zoom In"
+          aria-label="Zoom in timeline"
         >
           <ZoomIn className="size-3.5" />
-        </button>
+        </Button>
       </div>
     </div>
   );

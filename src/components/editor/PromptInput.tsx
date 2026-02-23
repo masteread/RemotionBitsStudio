@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/stores/project-store';
 import { ExamplesDropdown } from './ExamplesDropdown';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 export function PromptInput() {
   const [prompt, setPrompt] = useState('');
@@ -71,20 +72,34 @@ export function PromptInput() {
     <div className="border-t border-border bg-background p-3">
       <div className="mx-auto flex max-w-4xl items-end gap-2">
         <ExamplesDropdown onSelectPrompt={setPrompt} />
-        <Textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Describe the scene you want to create... (Cmd+Enter to generate)"
-          className="min-h-[44px] resize-none text-sm"
-          rows={1}
-          disabled={isGenerating}
-        />
+        <div className="relative flex-1">
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Describe the scene you want to create..."
+            className="min-h-[44px] resize-none text-sm pr-28 focus-visible:ring-brand/50"
+            rows={1}
+            disabled={isGenerating}
+            aria-label="Scene prompt"
+          />
+          {!prompt && (
+            <span className="pointer-events-none absolute bottom-3 right-3 text-[10px] text-muted-foreground/50 font-mono">
+              {navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}+Enter
+            </span>
+          )}
+        </div>
         <Button
           onClick={handleGenerate}
           disabled={!prompt.trim() || isGenerating}
-          className="shrink-0"
+          className="shrink-0 gap-1.5 bg-brand text-brand-foreground hover:bg-brand/90"
+          aria-label="Generate scene"
         >
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
           {isGenerating ? 'Generating...' : 'Generate'}
         </Button>
       </div>

@@ -28,6 +28,7 @@ interface ProjectState {
   toggleMultiSelectMode: () => void;
   toggleSceneSelection: (sceneId: string) => void;
   setCurrentFrame: (frame: number) => void;
+  resizeScene: (sceneId: string, newDuration: number, edge: 'left' | 'right') => void;
   requestSeek: (frame: number) => void;
   clearSeekRequest: () => void;
   reset: () => void;
@@ -171,6 +172,39 @@ export const useProjectStore = create<ProjectState>()(
       setCurrentFrame: (frame) =>
         set((state) => {
           state.currentFrame = frame;
+        }),
+
+      resizeScene: (sceneId, newDuration, edge) =>
+        set((state) => {
+          const scene = state.project.scenes.find((s) => s.id === sceneId);
+          if (!scene) return;
+          const MIN_DURATION = 15;
+          const clamped = Math.max(MIN_DURATION, Math.round(newDuration));
+          const oldDuration = scene.durationInFrames;
+
+          if (edge === 'right') {
+            scene.durationInFrames = clamped;
+            // Clamp or remove elements that exceed the new duration
+            scene.elements = scene.elements.filter((el) => el.startFrame < clamped);
+            for (const el of scene.elements) {
+              if (el.startFrame + el.durationInFrames > clamped) {
+                el.durationInFrames = clamped - el.startFrame;
+              }
+            }
+          } else {
+            // Left edge: shift elements by the delta
+            const delta = oldDuration - clamped;
+            scene.durationInFrames = clamped;
+            for (const el of scene.elements) {
+              el.startFrame -= delta;
+              if (el.startFrame < 0) {
+                el.durationInFrames += el.startFrame; // reduce by the overshoot
+                el.startFrame = 0;
+              }
+            }
+            // Remove elements that ended up with non-positive duration
+            scene.elements = scene.elements.filter((el) => el.durationInFrames > 0);
+          }
         }),
 
       requestSeek: (frame) =>

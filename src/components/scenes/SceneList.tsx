@@ -10,7 +10,7 @@ export function SceneList() {
   const selectScene = useProjectStore((s) => s.selectScene);
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-wrap gap-1">
       {scenes.map((scene, index) => (
         <SceneCard
           key={scene.id}
