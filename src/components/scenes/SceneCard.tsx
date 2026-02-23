@@ -46,7 +46,7 @@ export function SceneCard({ scene, index, isSelected, onSelect }: Props) {
           handleClick();
         }
       }}
-      className={`group w-full rounded-md border p-2 text-left transition-colors cursor-pointer ${
+      className={`group w-full rounded-md border p-2 text-left transition-colors cursor-pointer overflow-hidden ${
         multiSelectMode && isChecked
           ? 'border-destructive/50 bg-destructive/10'
           : isSelected && !multiSelectMode

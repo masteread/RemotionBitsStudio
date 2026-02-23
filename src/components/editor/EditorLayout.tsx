@@ -7,7 +7,7 @@ import { CodePanel } from './CodePanel';
 import { Timeline } from '../timeline/Timeline';
 import { PromptInput } from './PromptInput';
 import { useProjectStore } from '@/stores/project-store';
-import { Code, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function EditorLayout() {
@@ -43,13 +43,22 @@ export function EditorLayout() {
             onChange={(e) => setProjectName(e.target.value)}
           />
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 text-xs text-muted-foreground"
+          onClick={() => setShowCode((v) => !v)}
+        >
+          {showCode ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+          {showCode ? 'Hide Code' : 'Show Code'}
+        </Button>
       </header>
 
       {/* Main panels - CSS grid layout */}
-      <div className="flex-1 grid grid-cols-[minmax(220px,260px)_1fr_minmax(240px,300px)] overflow-hidden min-h-0">
+      <div className={`flex-1 grid overflow-hidden min-h-0 ${showCode ? 'grid-cols-[minmax(220px,260px)_1fr_minmax(240px,300px)]' : 'grid-cols-[minmax(220px,260px)_1fr]'}`}>
         <PromptPanel />
         <PreviewPanel />
-        <CodePanel />
+        {showCode && <CodePanel />}
       </div>
 
       {/* Timeline */}

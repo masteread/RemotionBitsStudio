@@ -20,7 +20,7 @@ export function PromptPanel() {
   const canDelete = selectionCount > 0 && selectionCount < scenes.length;
 
   return (
-    <div className="flex h-full flex-col border-r border-border overflow-hidden">
+    <div className="flex h-full flex-col border-r border-border overflow-hidden min-w-0">
       <div className="flex items-center justify-between border-b border-border px-3 py-2 shrink-0">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Scenes
