@@ -14,9 +14,10 @@ interface ScenePropertiesDropupProps {
   scene: Scene;
   anchorRect: DOMRect;
   onClose: () => void;
+  initialMode?: 'select' | 'prompt' | 'manual';
 }
 
-export function ScenePropertiesDropup({ scene, anchorRect, onClose }: ScenePropertiesDropupProps) {
+export function ScenePropertiesDropup({ scene, anchorRect, onClose, initialMode = 'select' }: ScenePropertiesDropupProps) {
   const updateScene = useProjectStore((s) => s.updateScene);
   const applyGeneratedScene = useProjectStore((s) => s.applyGeneratedScene);
   const setSceneStatus = useProjectStore((s) => s.setSceneStatus);
@@ -24,7 +25,7 @@ export function ScenePropertiesDropup({ scene, anchorRect, onClose }: ScenePrope
   const fps = useProjectStore((s) => s.project.fps);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const [mode, setMode] = useState<'select' | 'prompt' | 'manual'>('select');
+  const [mode, setMode] = useState<'select' | 'prompt' | 'manual'>(initialMode);
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);

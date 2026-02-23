@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  BookOpen,
   Lightbulb,
   Type,
   Keyboard,
@@ -58,13 +59,13 @@ export function ExamplesDropdown({ onSelectPrompt }: ExamplesDropdownProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="ghost"
-          size="icon"
-          className="shrink-0 text-muted-foreground hover:text-foreground"
-          title="Ver ejemplos de efectos"
+          variant="outline"
+          size="sm"
+          className="shrink-0 gap-1.5 border-brand/50 text-brand hover:bg-brand/10 hover:text-brand hover:border-brand"
           aria-label="Browse effect examples"
         >
-          <Lightbulb className="h-4 w-4" />
+          <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+          Get Inspired
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -78,7 +79,7 @@ export function ExamplesDropdown({ onSelectPrompt }: ExamplesDropdownProps) {
             <div className="p-3">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Lightbulb className="h-4 w-4 text-yellow-500" />
-                Ejemplos de Efectos
+                Effect Examples
               </h3>
               {categories.map((category) => {
                 const Icon = iconMap[category.icon] || Sparkles;
@@ -116,7 +117,7 @@ export function ExamplesDropdown({ onSelectPrompt }: ExamplesDropdownProps) {
               </div>
             ) : (
               <p className="text-center text-xs text-muted-foreground">
-                Pasa el cursor sobre un ejemplo para ver el preview
+                Hover over an example to see the preview
               </p>
             )}
           </div>

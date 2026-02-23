@@ -1,6 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
+import { Trash2, Sparkles, PenLine } from 'lucide-react';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from '@/components/ui/context-menu';
 import type { Scene } from '@/types/scene';
 
 const SCENE_COLORS = [
@@ -11,6 +19,14 @@ const SCENE_COLORS = [
   { bg: 'bg-pink-500/30', border: 'border-pink-500/50', accent: 'bg-pink-400/60' },
   { bg: 'bg-cyan-500/30', border: 'border-cyan-500/50', accent: 'bg-cyan-400/60' },
 ];
+
+function stableColorIndex(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % SCENE_COLORS.length;
+}
 
 interface TimelineSceneBlockProps {
   scene: Scene;
@@ -25,6 +41,8 @@ interface TimelineSceneBlockProps {
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, index: number) => void;
   onResizeStart: (sceneId: string, edge: 'left' | 'right', e: React.PointerEvent) => void;
+  onDelete: () => void;
+  onModify: (mode: 'prompt' | 'manual', anchorRect: DOMRect) => void;
 }
 
 export function TimelineSceneBlock({
@@ -40,8 +58,11 @@ export function TimelineSceneBlock({
   onDragOver,
   onDrop,
   onResizeStart,
+  onDelete,
+  onModify,
 }: TimelineSceneBlockProps) {
-  const color = SCENE_COLORS[index % SCENE_COLORS.length];
+  const blockRef = useRef<HTMLDivElement>(null);
+  const color = SCENE_COLORS[stableColorIndex(scene.id)];
   const width = previewWidth ?? scene.durationInFrames * pixelsPerFrame;
   const left = offsetFrame * pixelsPerFrame;
   const showSubTracks = width > 100;
@@ -52,96 +73,123 @@ export function TimelineSceneBlock({
   };
 
   return (
-    <div
-      className={`absolute top-0 h-full cursor-pointer rounded border ${color.bg} ${color.border} ${
-        isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''
-      } ${scene.status === 'generating' ? 'animate-pulse' : ''} transition-shadow`}
-      style={{ left, width, minWidth: 40 }}
-      draggable={!isAnyResizing}
-      onClick={(e) => onSelect(scene.id, e)}
-      onDragStart={(e) => {
-        if (isAnyResizing) { e.preventDefault(); return; }
-        onDragStart(e, index);
-      }}
-      onDragOver={onDragOver}
-      onDrop={(e) => onDrop(e, index)}
-    >
-      {/* Left resize handle */}
-      <div
-        className="absolute left-0 top-0 z-10 h-full w-1.5 cursor-col-resize group"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onResizeStart(scene.id, 'left', e);
-        }}
-        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      >
-        <div className="h-full w-0.5 bg-transparent group-hover:bg-primary transition-colors" />
-      </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={blockRef}
+          className={`absolute top-0 h-full cursor-pointer rounded border ${color.bg} ${color.border} ${
+            isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''
+          } ${scene.status === 'generating' ? 'animate-pulse' : ''} transition-shadow`}
+          style={{ left, width, minWidth: 40 }}
+          draggable={!isAnyResizing}
+          onClick={(e) => onSelect(scene.id, e)}
+          onDragStart={(e) => {
+            if (isAnyResizing) { e.preventDefault(); return; }
+            onDragStart(e, index);
+          }}
+          onDragOver={onDragOver}
+          onDrop={(e) => onDrop(e, index)}
+        >
+          {/* Left resize handle */}
+          <div
+            className="absolute left-0 top-0 z-10 h-full w-1.5 cursor-col-resize group"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onResizeStart(scene.id, 'left', e);
+            }}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <div className="h-full w-0.5 bg-transparent group-hover:bg-primary transition-colors" />
+          </div>
 
-      {/* Right resize handle */}
-      <div
-        className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize group"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onResizeStart(scene.id, 'right', e);
-        }}
-        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      >
-        <div className="ml-auto h-full w-0.5 bg-transparent group-hover:bg-primary transition-colors" />
-      </div>
+          {/* Right resize handle */}
+          <div
+            className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize group"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onResizeStart(scene.id, 'right', e);
+            }}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <div className="ml-auto h-full w-0.5 bg-transparent group-hover:bg-primary transition-colors" />
+          </div>
 
-      {/* Shimmer overlay during generation */}
-      {scene.status === 'generating' && (
-        <div className="absolute inset-0 overflow-hidden rounded pointer-events-none">
-          <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        </div>
-      )}
+          {/* Shimmer overlay during generation */}
+          {scene.status === 'generating' && (
+            <div className="absolute inset-0 overflow-hidden rounded pointer-events-none">
+              <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            </div>
+          )}
 
-      {/* Scene label */}
-      <div className="flex h-5 items-center justify-between px-1.5">
-        <span className="truncate text-[10px] font-medium">{scene.name}</span>
-        {width > 60 && (
-          <span className="shrink-0 text-[9px] text-muted-foreground">
-            {formatDuration(scene.durationInFrames)}
-          </span>
-        )}
-      </div>
+          {/* Scene label */}
+          <div className="flex h-5 items-center justify-between px-1.5">
+            <span className="truncate text-[10px] font-medium">{scene.name}</span>
+            {width > 60 && (
+              <span className="shrink-0 text-[9px] text-muted-foreground">
+                {formatDuration(scene.durationInFrames)}
+              </span>
+            )}
+          </div>
 
-      {/* Element sub-tracks */}
-      {showSubTracks && scene.elements.length > 0 && (
-        <div className="mt-0.5 space-y-px px-1">
-          {scene.elements.slice(0, 4).map((el) => {
-            const elLeft = (el.startFrame / scene.durationInFrames) * 100;
-            const elWidth = (el.durationInFrames / scene.durationInFrames) * 100;
-            return (
-              <div key={el.id} className="relative h-2.5 overflow-hidden rounded-sm">
-                <div
-                  className={`absolute top-0 h-full rounded-sm ${color.accent}`}
-                  style={{
-                    left: `${elLeft}%`,
-                    width: `${Math.min(elWidth, 100 - elLeft)}%`,
-                  }}
-                />
-                {width > 150 && (
-                  <span
-                    className="absolute left-0 top-0 truncate px-0.5 text-[7px] leading-[10px] text-foreground/70"
-                    style={{ marginLeft: `${elLeft}%` }}
-                  >
-                    {el.type}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-          {scene.elements.length > 4 && (
-            <span className="text-[7px] text-muted-foreground">
-              +{scene.elements.length - 4} more
-            </span>
+          {/* Element sub-tracks */}
+          {showSubTracks && scene.elements.length > 0 && (
+            <div className="mt-0.5 space-y-px px-1">
+              {scene.elements.slice(0, 4).map((el) => {
+                const elLeft = (el.startFrame / scene.durationInFrames) * 100;
+                const elWidth = (el.durationInFrames / scene.durationInFrames) * 100;
+                return (
+                  <div key={el.id} className="relative h-2.5 overflow-hidden rounded-sm">
+                    <div
+                      className={`absolute top-0 h-full rounded-sm ${color.accent}`}
+                      style={{
+                        left: `${elLeft}%`,
+                        width: `${Math.min(elWidth, 100 - elLeft)}%`,
+                      }}
+                    />
+                    {width > 150 && (
+                      <span
+                        className="absolute left-0 top-0 truncate px-0.5 text-[7px] leading-[10px] text-foreground/70"
+                        style={{ marginLeft: `${elLeft}%` }}
+                      >
+                        {el.type}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              {scene.elements.length > 4 && (
+                <span className="text-[7px] text-muted-foreground">
+                  +{scene.elements.length - 4} more
+                </span>
+              )}
+            </div>
           )}
         </div>
-      )}
-    </div>
+      </ContextMenuTrigger>
+
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onSelect={() => {
+          const rect = blockRef.current?.getBoundingClientRect();
+          if (rect) onModify('prompt', rect);
+        }}>
+          <Sparkles className="size-4 text-purple-500" />
+          Modify with AI
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => {
+          const rect = blockRef.current?.getBoundingClientRect();
+          if (rect) onModify('manual', rect);
+        }}>
+          <PenLine className="size-4 text-blue-500" />
+          Edit Manually
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={onDelete} className="text-red-500 focus:text-red-500">
+          <Trash2 className="size-4" />
+          Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

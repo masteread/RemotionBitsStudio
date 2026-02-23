@@ -62,13 +62,74 @@ ${ind}</Sequence>`;
     }
     case 'ParticleSystem': {
       const c = element.config;
+
+      // Build velocity prop
+      const velParts = [`x: ${c.velocity.x}`, `y: ${c.velocity.y}`];
+      if (c.velocity.z !== undefined) velParts.push(`z: ${c.velocity.z}`);
+      if (c.velocity.varianceX !== undefined) velParts.push(`varianceX: ${c.velocity.varianceX}`);
+      if (c.velocity.varianceY !== undefined) velParts.push(`varianceY: ${c.velocity.varianceY}`);
+      if (c.velocity.varianceZ !== undefined) velParts.push(`varianceZ: ${c.velocity.varianceZ}`);
+      const velStr = `{ ${velParts.join(', ')} }`;
+
+      // Build area prop
+      const areaParts = [`width: ${c.spawnArea.width}`, `height: ${c.spawnArea.height}`];
+      if (c.spawnArea.depth !== undefined) areaParts.push(`depth: ${c.spawnArea.depth}`);
+      const areaStr = `{ ${areaParts.join(', ')} }`;
+
+      // Build spawner extra props
+      const spawnerExtras: string[] = [];
+      if (c.startFrame) spawnerExtras.push(`startFrame={${c.startFrame}}`);
+      if (c.transition) spawnerExtras.push(`transition={${JSON.stringify(c.transition)}}`);
+      const spawnerExtraStr = spawnerExtras.length > 0 ? ' ' + spawnerExtras.join(' ') : '';
+
+      // Build particle elements
+      const style = c.particleStyle ?? 'solid';
+      const variants = c.particleVariants && c.particleVariants.length > 0 ? c.particleVariants : null;
+      let particleElements: string;
+
+      if (variants) {
+        particleElements = variants.map((v) => {
+          const s = v.style ?? style;
+          if (s === 'gradient') {
+            return `${ind}      <div style={{ width: ${v.size}, height: ${v.size}, borderRadius: '50%', background: 'radial-gradient(circle, ${v.color}, transparent 70%)'${v.opacity !== undefined ? `, opacity: ${v.opacity}` : ''} }} />`;
+          } else if (s === 'glow') {
+            return `${ind}      <div style={{ width: ${v.size}, height: ${v.size}, borderRadius: '50%', backgroundColor: '${v.color}', boxShadow: '0 0 ${v.size * 2}px ${v.size}px ${v.color}99'${v.opacity !== undefined ? `, opacity: ${v.opacity}` : ''} }} />`;
+          }
+          return `${ind}      <div style={{ width: ${v.size}, height: ${v.size}, borderRadius: '50%', backgroundColor: '${v.color}'${v.opacity !== undefined ? `, opacity: ${v.opacity}` : ''} }} />`;
+        }).join('\n');
+      } else if (style === 'gradient') {
+        particleElements = `${ind}      <div style={{ width: ${c.particleSize}, height: ${c.particleSize}, borderRadius: '50%', background: 'radial-gradient(circle, ${c.particleColor}, transparent 70%)' }} />`;
+      } else if (style === 'glow') {
+        particleElements = `${ind}      <div style={{ width: ${c.particleSize}, height: ${c.particleSize}, borderRadius: '50%', backgroundColor: '${c.particleColor}', boxShadow: '0 0 ${c.particleSize * 2}px ${c.particleSize}px ${c.particleColor}99' }} />`;
+      } else {
+        particleElements = `${ind}      <div style={{ width: ${c.particleSize}, height: ${c.particleSize}, borderRadius: '50%', backgroundColor: '${c.particleColor}' }} />`;
+      }
+
+      // Build behaviors
+      const bi = `${ind}      `; // indent for inside <Particles>
+      let behaviors = `${bi}<Behavior gravity={{ x: ${c.gravity.x}, y: ${c.gravity.y} }} drag={${c.drag}} opacity={[${c.opacity.join(', ')}]} />`;
+      if (c.wiggle) {
+        behaviors += `\n${bi}<Behavior wiggle={{ magnitude: ${c.wiggle.magnitude}, frequency: ${c.wiggle.frequency} }} />`;
+      }
+      if (c.drift) {
+        behaviors += `\n${bi}<Behavior handler={(p) => { p.velocity.x += ${c.drift.x}; p.velocity.y += ${c.drift.y}; }} />`;
+      }
+
+      // Perspective wrapper
+      const perspectiveStyle = c.perspective ? ` style={{ perspective: ${c.perspective} }}` : '';
+
+      // Indent particle elements to match new nesting
+      const reindentedParticles = particleElements.split('\n').map(l => `${ind}  ${l.trimStart()}`).join('\n');
+
       return `${ind}<Sequence ${props.join(' ')} layout="none">
-${ind}  <Particles>
-${ind}    <Spawner rate={${c.spawnRate}} max={${c.maxParticles}} lifespan={${c.particleLifespan}} velocity={{ x: ${c.velocity.x}, y: ${c.velocity.y} }}>
-${ind}      <div style={{ width: ${c.particleSize}, height: ${c.particleSize}, borderRadius: '50%', background: '${c.particleColor}' }} />
-${ind}    </Spawner>
-${ind}    <Behavior gravity={{ x: ${c.gravity.x}, y: ${c.gravity.y} }} drag={${c.drag}} opacity={[${c.opacity.join(', ')}]} />
-${ind}  </Particles>
+${ind}  <AbsoluteFill>
+${ind}    <Particles${perspectiveStyle}>
+${ind}      <Spawner rate={${c.spawnRate}} max={${c.maxParticles}} lifespan={${c.particleLifespan}} velocity={${velStr}} area={${areaStr}} position={{ x: ${element.position.x}, y: ${element.position.y} }}${spawnerExtraStr}>
+${reindentedParticles}
+${ind}      </Spawner>
+${behaviors}
+${ind}    </Particles>
+${ind}  </AbsoluteFill>
 ${ind}</Sequence>`;
     }
     case 'StaggeredMotion': {

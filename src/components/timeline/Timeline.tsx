@@ -18,6 +18,7 @@ export function Timeline() {
   const fps = useProjectStore((s) => s.project.fps);
   const currentFrame = useProjectStore((s) => s.currentFrame);
   const selectScene = useProjectStore((s) => s.selectScene);
+  const removeScene = useProjectStore((s) => s.removeScene);
   const reorderScenes = useProjectStore((s) => s.reorderScenes);
   const resizeScene = useProjectStore((s) => s.resizeScene);
   const requestSeek = useProjectStore((s) => s.requestSeek);
@@ -25,6 +26,7 @@ export function Timeline() {
   const [zoom, setZoom] = useState(1);
   const [dropupScene, setDropupScene] = useState<Scene | null>(null);
   const [dropupAnchor, setDropupAnchor] = useState<DOMRect | null>(null);
+  const [dropupInitialMode, setDropupInitialMode] = useState<'select' | 'prompt' | 'manual'>('select');
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragIndexRef = useRef<number | null>(null);
 
@@ -87,6 +89,7 @@ export function Timeline() {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setDropupScene(scene);
       setDropupAnchor(rect);
+      setDropupInitialMode('select');
     },
     [scenes, selectScene]
   );
@@ -94,7 +97,28 @@ export function Timeline() {
   const handleCloseDropup = useCallback(() => {
     setDropupScene(null);
     setDropupAnchor(null);
+    setDropupInitialMode('select');
   }, []);
+
+  const handleDelete = useCallback(
+    (sceneId: string) => {
+      removeScene(sceneId);
+      handleCloseDropup();
+    },
+    [removeScene, handleCloseDropup]
+  );
+
+  const handleModify = useCallback(
+    (sceneId: string, mode: 'prompt' | 'manual', anchorRect: DOMRect) => {
+      selectScene(sceneId);
+      const scene = scenes.find((s) => s.id === sceneId);
+      if (!scene) return;
+      setDropupScene(scene);
+      setDropupAnchor(anchorRect);
+      setDropupInitialMode(mode);
+    },
+    [scenes, selectScene]
+  );
 
   // Drag and drop reorder
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -247,6 +271,8 @@ export function Timeline() {
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               onResizeStart={handleResizeStart}
+              onDelete={() => handleDelete(scene.id)}
+              onModify={(mode, anchorRect) => handleModify(scene.id, mode, anchorRect)}
             />
           ))}
 
@@ -284,6 +310,7 @@ export function Timeline() {
           scene={currentDropupScene}
           anchorRect={dropupAnchor}
           onClose={handleCloseDropup}
+          initialMode={dropupInitialMode}
         />
       )}
     </div>

@@ -82,15 +82,28 @@ const gradientTransitionElementSchema = baseElementSchema.extend({
 });
 
 // --- ParticleSystem ---
+const particleVariantSchema = z.object({
+  size: z.number().min(1).max(200),
+  color: z.string(),
+  style: z.enum(['solid', 'gradient', 'glow']).default('solid'),
+  opacity: z.number().min(0).max(1).optional(),
+});
+
 const particleSystemConfigSchema = z.object({
   spawnRate: z.number().min(0.1).max(50).default(5),
   maxParticles: z.number().min(1).max(500).default(100),
   particleLifespan: z.number().min(1).default(60),
-  particleSize: z.number().min(1).max(100).default(10),
+  particleSize: z.number().min(1).max(200).default(10),
   particleColor: z.string().default('#ffffff'),
+  particleStyle: z.enum(['solid', 'gradient', 'glow']).default('solid').optional(),
+  particleVariants: z.array(particleVariantSchema).optional(),
   velocity: z.object({
     x: z.number().default(0),
     y: z.number().default(-2),
+    z: z.number().optional(),
+    varianceX: z.number().optional(),
+    varianceY: z.number().optional(),
+    varianceZ: z.number().optional(),
   }),
   gravity: z.object({
     x: z.number().default(0),
@@ -101,7 +114,24 @@ const particleSystemConfigSchema = z.object({
   spawnArea: z.object({
     width: z.number().default(200),
     height: z.number().default(50),
+    depth: z.number().optional(),
   }),
+  perspective: z.number().optional(),
+  particleTexts: z.array(z.string()).optional(),
+  particleFontSize: z.number().optional(),
+  wiggle: z.object({
+    magnitude: z.number().min(0).max(20),
+    frequency: z.number().min(0).max(5),
+  }).optional(),
+  drift: z.object({
+    x: z.number(),
+    y: z.number(),
+  }).optional(),
+  startFrame: z.number().int().min(0).optional(),
+  transition: z.object({
+    opacity: z.array(z.number()).optional(),
+    duration: z.number().optional(),
+  }).optional(),
 });
 
 const particleSystemElementSchema = baseElementSchema.extend({

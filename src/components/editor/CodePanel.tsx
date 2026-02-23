@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useProjectStore } from '@/stores/project-store';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Save } from 'lucide-react';
 
 const PLACEHOLDER = '// Select a scene and generate content\n// to see code here';
 
@@ -112,11 +112,17 @@ function colorizeCode(code: string): React.ReactNode[] {
 export function CodePanel() {
   const selectedSceneId = useProjectStore((s) => s.project.selectedSceneId);
   const scenes = useProjectStore((s) => s.project.scenes);
+  const updateScene = useProjectStore((s) => s.updateScene);
   const selectedScene = scenes.find((s) => s.id === selectedSceneId);
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableCode, setEditableCode] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fullCode = selectedScene?.generatedCode || PLACEHOLDER;
   const status = selectedScene?.status;
+  const isPlaceholder = !selectedScene?.generatedCode;
 
   const [displayedCode, setDisplayedCode] = useState(fullCode);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -129,6 +135,8 @@ export function CodePanel() {
       wasGeneratingRef.current = true;
       setDisplayedCode('');
       setIsStreaming(true);
+      setIsEditing(false);
+      setHasUnsavedChanges(false);
     }
   }, [status]);
 
@@ -161,6 +169,10 @@ export function CodePanel() {
       // Scene switch or initial load — show immediately
       setDisplayedCode(fullCode);
       setIsStreaming(false);
+      if (!isEditing) {
+        setEditableCode(fullCode);
+        setHasUnsavedChanges(false);
+      }
     }
 
     return () => {
@@ -169,45 +181,143 @@ export function CodePanel() {
         intervalRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullCode, status]);
+
+  // Sync editable code when switching scenes
+  useEffect(() => {
+    setEditableCode(fullCode);
+    setIsEditing(false);
+    setHasUnsavedChanges(false);
+  }, [selectedSceneId, fullCode]);
 
   const colorized = useMemo(() => colorizeCode(displayedCode), [displayedCode]);
 
   const handleCopy = useCallback(async () => {
-    await navigator.clipboard.writeText(fullCode);
+    const codeToCopy = isEditing ? editableCode : fullCode;
+    await navigator.clipboard.writeText(codeToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [fullCode]);
+  }, [fullCode, editableCode, isEditing]);
+
+  const handleStartEditing = useCallback(() => {
+    if (isStreaming || isPlaceholder) return;
+    setEditableCode(fullCode);
+    setIsEditing(true);
+    setHasUnsavedChanges(false);
+    // Focus textarea after render
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }, [isStreaming, isPlaceholder, fullCode]);
+
+  const handleCodeChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditableCode(e.target.value);
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (!selectedSceneId || !hasUnsavedChanges) return;
+    updateScene(selectedSceneId, { generatedCode: editableCode });
+    setHasUnsavedChanges(false);
+  }, [selectedSceneId, editableCode, hasUnsavedChanges, updateScene]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Cmd/Ctrl+S to save
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault();
+      handleSave();
+    }
+    // Escape to exit editing
+    if (e.key === 'Escape') {
+      setIsEditing(false);
+      if (hasUnsavedChanges) {
+        setEditableCode(fullCode);
+        setHasUnsavedChanges(false);
+      }
+    }
+    // Tab inserts 2 spaces instead of changing focus
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = editableCode.substring(0, start) + '  ' + editableCode.substring(end);
+      setEditableCode(newValue);
+      setHasUnsavedChanges(true);
+      // Restore cursor position after React re-render
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+      }, 0);
+    }
+  }, [handleSave, hasUnsavedChanges, fullCode, editableCode]);
 
   return (
     <div className="flex h-full flex-col border-l border-border overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-3 py-2 shrink-0">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Generated Code
-        </h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={handleCopy}
-          disabled={!selectedScene?.generatedCode || isStreaming}
-          aria-label="Copy code to clipboard"
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-green-500" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {isEditing ? 'Edit Code' : 'Generated Code'}
+          </h2>
+          {hasUnsavedChanges && (
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" title="Unsaved changes" />
           )}
-        </Button>
+        </div>
+        <div className="flex items-center gap-0.5">
+          {isEditing && hasUnsavedChanges && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={handleSave}
+              aria-label="Save code changes"
+              title="Save (Cmd+S)"
+            >
+              <Save className="h-3.5 w-3.5 text-amber-400" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={handleCopy}
+            disabled={isPlaceholder || isStreaming}
+            aria-label="Copy code to clipboard"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-green-500" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        </div>
       </div>
-      <ScrollArea className="flex-1">
-        <pre className="p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap break-words">
-          <code>{colorized}</code>
-          {isStreaming && (
-            <span className="inline-block w-[2px] h-[14px] bg-brand/70 align-middle animate-pulse ml-[1px]" />
-          )}
-        </pre>
-      </ScrollArea>
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          className="flex-1 w-full p-3 text-xs leading-relaxed text-muted-foreground bg-transparent resize-none outline-none font-mono whitespace-pre overflow-auto min-h-0"
+          value={editableCode}
+          onChange={handleCodeChange}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            if (!hasUnsavedChanges) setIsEditing(false);
+          }}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+        />
+      ) : (
+        <ScrollArea className="flex-1 overflow-hidden min-h-0">
+          <pre
+            className="p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap break-words [word-break:break-word] max-w-full cursor-text"
+            onClick={handleStartEditing}
+            title={!isStreaming && !isPlaceholder ? 'Click to edit code' : undefined}
+          >
+            <code className="block">{colorized}</code>
+            {isStreaming && (
+              <span className="inline-block w-[2px] h-[14px] bg-brand/70 align-middle animate-pulse ml-[1px]" />
+            )}
+          </pre>
+        </ScrollArea>
+      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { nanoid } from 'nanoid';
 import type { Project, Scene, SceneElement } from '@/types/scene';
 import type { GeneratedScene } from '@/lib/ai/scene-schema';
 
+const MAX_UNDO = 3;
+
 interface ProjectState {
   project: Project;
   // Multi-select state
@@ -13,6 +15,9 @@ interface ProjectState {
   // Frame tracking (not persisted)
   currentFrame: number;
   seekRequest: number | null;
+  // Undo/redo stacks (not persisted)
+  undoStack: Project[];
+  redoStack: Project[];
   // Actions
   setProjectName: (name: string) => void;
   addScene: (scene?: Partial<Scene>) => string;
@@ -31,6 +36,8 @@ interface ProjectState {
   resizeScene: (sceneId: string, newDuration: number, edge: 'left' | 'right') => void;
   requestSeek: (frame: number) => void;
   clearSeekRequest: () => void;
+  undo: () => void;
+  redo: () => void;
   reset: () => void;
 }
 
@@ -48,21 +55,39 @@ function createDefaultProject(): Project {
 
 export const useProjectStore = create<ProjectState>()(
   persist(
-    immer((set, get) => ({
+    immer((set, get) => {
+      // Helper: snapshot current project into undo stack, clear redo
+      const pushUndo = () => {
+        const snapshot = JSON.parse(JSON.stringify(get().project)) as Project;
+        set((state) => {
+          state.undoStack.push(snapshot);
+          if (state.undoStack.length > MAX_UNDO) {
+            state.undoStack.shift();
+          }
+          state.redoStack = [];
+        });
+      };
+
+      return {
       project: createDefaultProject(),
       multiSelectMode: false,
       selectedSceneIds: [] as string[],
       currentFrame: 0,
       seekRequest: null as number | null,
+      undoStack: [] as Project[],
+      redoStack: [] as Project[],
 
-      setProjectName: (name) =>
+      setProjectName: (name) => {
+        pushUndo();
         set((state) => {
           state.project.name = name;
-        }),
+        });
+      },
 
       addScene: (partial) => {
         const id = nanoid();
         const sceneCount = get().project.scenes.length;
+        pushUndo();
         set((state) => {
           state.project.scenes.push({
             id,
@@ -79,7 +104,8 @@ export const useProjectStore = create<ProjectState>()(
         return id;
       },
 
-      removeScene: (sceneId) =>
+      removeScene: (sceneId) => {
+        pushUndo();
         set((state) => {
           const idx = state.project.scenes.findIndex((s) => s.id === sceneId);
           if (idx === -1) return;
@@ -88,9 +114,11 @@ export const useProjectStore = create<ProjectState>()(
             state.project.selectedSceneId =
               state.project.scenes[Math.min(idx, state.project.scenes.length - 1)]?.id ?? null;
           }
-        }),
+        });
+      },
 
-      removeMultipleScenes: () =>
+      removeMultipleScenes: () => {
+        pushUndo();
         set((state) => {
           const idsToRemove = state.selectedSceneIds;
           if (idsToRemove.length === 0) return;
@@ -101,7 +129,8 @@ export const useProjectStore = create<ProjectState>()(
           }
           state.selectedSceneIds = [];
           state.multiSelectMode = false;
-        }),
+        });
+      },
 
       toggleMultiSelectMode: () =>
         set((state) => {
@@ -126,20 +155,25 @@ export const useProjectStore = create<ProjectState>()(
           state.project.selectedSceneId = sceneId;
         }),
 
-      updateScene: (sceneId, updates) =>
+      updateScene: (sceneId, updates) => {
+        pushUndo();
         set((state) => {
           const scene = state.project.scenes.find((s) => s.id === sceneId);
           if (!scene) return;
           Object.assign(scene, updates);
-        }),
+        });
+      },
 
-      reorderScenes: (fromIndex, toIndex) =>
+      reorderScenes: (fromIndex, toIndex) => {
+        pushUndo();
         set((state) => {
           const [removed] = state.project.scenes.splice(fromIndex, 1);
           state.project.scenes.splice(toIndex, 0, removed);
-        }),
+        });
+      },
 
-      applyGeneratedScene: (sceneId, generated, prompt) =>
+      applyGeneratedScene: (sceneId, generated, prompt) => {
+        pushUndo();
         set((state) => {
           const scene = state.project.scenes.find((s) => s.id === sceneId);
           if (!scene) return;
@@ -150,7 +184,8 @@ export const useProjectStore = create<ProjectState>()(
           scene.prompt = prompt;
           scene.status = 'ready';
           scene.error = undefined;
-        }),
+        });
+      },
 
       setSceneStatus: (sceneId, status, error) =>
         set((state) => {
@@ -174,7 +209,8 @@ export const useProjectStore = create<ProjectState>()(
           state.currentFrame = frame;
         }),
 
-      resizeScene: (sceneId, newDuration, edge) =>
+      resizeScene: (sceneId, newDuration, edge) => {
+        pushUndo();
         set((state) => {
           const scene = state.project.scenes.find((s) => s.id === sceneId);
           if (!scene) return;
@@ -205,7 +241,8 @@ export const useProjectStore = create<ProjectState>()(
             // Remove elements that ended up with non-positive duration
             scene.elements = scene.elements.filter((el) => el.durationInFrames > 0);
           }
-        }),
+        });
+      },
 
       requestSeek: (frame) =>
         set((state) => {
@@ -217,12 +254,45 @@ export const useProjectStore = create<ProjectState>()(
           state.seekRequest = null;
         }),
 
+      undo: () => {
+        const { undoStack } = get();
+        if (undoStack.length === 0) return;
+        const currentSnapshot = JSON.parse(JSON.stringify(get().project)) as Project;
+        const previous = undoStack[undoStack.length - 1];
+        set((state) => {
+          state.redoStack.push(currentSnapshot);
+          if (state.redoStack.length > MAX_UNDO) {
+            state.redoStack.shift();
+          }
+          state.undoStack.pop();
+          state.project = previous as Project;
+        });
+      },
+
+      redo: () => {
+        const { redoStack } = get();
+        if (redoStack.length === 0) return;
+        const currentSnapshot = JSON.parse(JSON.stringify(get().project)) as Project;
+        const next = redoStack[redoStack.length - 1];
+        set((state) => {
+          state.undoStack.push(currentSnapshot);
+          if (state.undoStack.length > MAX_UNDO) {
+            state.undoStack.shift();
+          }
+          state.redoStack.pop();
+          state.project = next as Project;
+        });
+      },
+
       reset: () =>
         set((state) => {
           const fresh = createDefaultProject();
           state.project = fresh;
+          state.undoStack = [];
+          state.redoStack = [];
         }),
-    })),
+    };
+    }),
     {
       name: 'remotion-ai-editor-project',
       partialize: (state) => ({ project: state.project }),

@@ -77,7 +77,7 @@ export function PromptInput() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe the scene you want to create..."
+            placeholder={selectedSceneId ? "Describe what you want to change in this scene..." : "Describe a new scene or click Get Inspired..."}
             className="min-h-[44px] resize-none text-sm pr-28 focus-visible:ring-brand/50"
             rows={1}
             disabled={isGenerating}
@@ -100,7 +100,7 @@ export function PromptInput() {
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          {isGenerating ? 'Generating...' : 'Generate'}
+          {isGenerating ? 'Generating...' : selectedSceneId ? 'Modify' : 'Generate Scene'}
         </Button>
       </div>
     </div>

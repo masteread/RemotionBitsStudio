@@ -94,13 +94,22 @@ export interface GradientTransitionElement extends BaseElement {
 }
 
 // --- ParticleSystem ---
+export interface ParticleVariant {
+  size: number;
+  color: string;
+  style: 'solid' | 'gradient' | 'glow';
+  opacity?: number;
+}
+
 export interface ParticleSystemConfig {
   spawnRate: number;
   maxParticles: number;
   particleLifespan: number;
   particleSize: number;
   particleColor: string;
-  velocity: { x: number; y: number; z?: number; varianceZ?: number };
+  particleStyle?: 'solid' | 'gradient' | 'glow';
+  particleVariants?: ParticleVariant[];
+  velocity: { x: number; y: number; z?: number; varianceX?: number; varianceY?: number; varianceZ?: number };
   gravity: { x: number; y: number };
   drag: number;
   opacity: number[];
@@ -108,6 +117,10 @@ export interface ParticleSystemConfig {
   perspective?: number;
   particleTexts?: string[];
   particleFontSize?: number;
+  wiggle?: { magnitude: number; frequency: number };
+  drift?: { x: number; y: number };
+  startFrame?: number;
+  transition?: { opacity?: number[]; duration?: number };
 }
 
 export interface ParticleSystemElement extends BaseElement {
